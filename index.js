@@ -1,3 +1,4 @@
+require('dotenv').config();
 const app = require('express')();
 const mongoose = require('mongoose');
 const User = require('./models/users');
@@ -53,7 +54,7 @@ app.get('/api/users', (req, res) => {
   });
 });
 
-mongoose.connect('mongodb+srv://kunwarjeetbindra:78Percent@cluster0.rxlpdkz.mongodb.net/codemingle?retryWrites=true&w=majority&appName=Cluster0').then(() => {
+mongoose.connect(process.env.MONGODB_URI).then(() => {
   console.log('Connected to MongoDB');
   app.listen(7777)
 }).catch(err => {
