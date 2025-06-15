@@ -7,31 +7,40 @@ app.use(require('express').json());
 
 app.post('/api/users', async (req, res) => {
   const { firstName, lastName, email, password } = req.body;
-  if (!firstName || !lastName || !email || !password) {
-    return res.status(400).json({ error: 'All fields are required' });
-  }
-  const existingUser = await User.find({ email: email });
-  if (existingUser.length) {
-    return res.status(400).json({ error: 'User already exists' });
-  }
   const newUser = new User({ firstName, lastName, email, password });
-  newUser.save()
-    .then(user => res.status(200).json(user))
-    .catch(err => {
-      res.status(500).json({ error: 'Internal server error' });
-    });
+  try {
+    const savedUser = await newUser.save();
+    res.status(201).json(savedUser);
+  } catch (err) {
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ error: err.message });
+    }
+    // Handle duplicate email error
+    // MongoDB returns a 11000 error code for duplicate key errors
+    if (err.code === 11000) {
+      return res.status(400).json({ error: 'Email already exists' });
+    }
+    // If the error is not a validation error or duplicate key error, return a generic error message  
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-app.patch('/api/users/:id', (req, res) => {
+app.patch('/api/users/:id', async (req, res) => {
   const { id } = req.params;
-  User.findByIdAndUpdate(id, req.body).then(user => {
-    if (!user) {
+  try {
+    const updatedUser = await User.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
+    if (!updatedUser) {
       return res.status(404).json({ error: 'User not found' });
     }
-    res.status(200).json({ message: 'User updated successfully' });
-  }).catch(err => {
+    res.status(200).json(updatedUser);  
+  } catch (err) {
+    // Handle validation errors
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ error: err.message });
+    }
+    // If the error is not a validation error or duplicate key error, return a generic error message  
     res.status(500).json({ error: 'Internal server error' });
-  });
+  }
 });
 
 app.get('/api/users/:id', (req, res) => {
